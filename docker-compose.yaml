@@ -1,0 +1,65 @@
+version: "3.9"
+ 
+services:
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    
+    environment:
+      # If your Redis requires auth, set REDIS_PASSWORD and keep REDIS_ADDR as is, or embed the password in the URL.
+      # Example with password: redis://default:<password>@redis:6379
+      REDIS_ADDR: "rediss://<END_POINT>.redis.ap-mumbai-1.oci.oraclecloud.com:6379"
+      REDIS_USER: "<USER>"
+      REDIS_PASSWORD: "<PASSWORD>"
+      REDIS_EXPORTER_SKIP_TLS_VERIFICATION: "true"
+      REDIS_EXPORTER_IS_CLUSTER: "true"
+      # To enable keys/latency etc. metrics, you may add: REDIS_EXPORTER_INCL_SYSTEM_METRICS=true
+      REDIS_EXPORTER_INCL_SYSTEM_METRICS: "true"
+    ports:
+      - "9121:9121"
+    networks:
+      - monitor
+    restart: unless-stopped
+ 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - monitor
+    restart: unless-stopped
+ 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin123"   # change in production
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - monitor
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+ 
+networks:
+  monitor:
+    driver: bridge
+ 
+volumes:
+  prometheus-data:
+  grafana-data:
